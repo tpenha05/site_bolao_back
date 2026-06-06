@@ -189,8 +189,16 @@ class MatchService:
         cached = self.db.get(CachedMatch, match_id)
         if cached and not self._is_stale(cached):
             return cached
-        data = self._get(f"/get/game/{match_id}")
-        return self._cache_match_data(data)
+        # /get/game/{id} da API externa retorna 400 — usamos o /get/games (lista
+        # completa) para refrescar todos os jogos de uma vez. São só 104 jogos.
+        self.sync_all_matches()
+        refreshed = self.db.get(CachedMatch, match_id)
+        if refreshed:
+            return refreshed
+        if cached:
+            return cached
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
 
     def get_team(self, team_id: str) -> Optional[CachedTeam]:
         if team_id == "0":

@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(python -c 'import ast, os; errors=[] *)",
-      "Bash(python -c 'import ast *)"
+      "Bash(python -c 'import ast *)",
+      "Bash(python -c 'from app.services.scoring_service import compute_top_scorers, calculate_points, _normalize_name; ts = compute_top_scorers\\('\\\\''Mbappé, Griezmann'\\\\'', '\\\\''Neymar, Neymar, Vinícius'\\\\''\\); print\\('\\\\''top_scorers:'\\\\'', sorted\\(ts\\)\\); print\\('\\\\''1\\)'\\\\'', calculate_points\\(2,3,2,3,'\\\\''neymar'\\\\'', ts\\), '\\\\''\\(esp 6, placar exato + artilheiro\\)'\\\\''\\); print\\('\\\\''2\\)'\\\\'', calculate_points\\(1,2,2,3,'\\\\''Neymar'\\\\'', ts\\), '\\\\''\\(esp 3, resultado + artilheiro\\)'\\\\''\\); print\\('\\\\''3\\)'\\\\'', calculate_points\\(2,3,2,3,'\\\\''Mbappe'\\\\'', ts\\), '\\\\''\\(esp 5, placar exato, mbappe nao eh artilheiro\\)'\\\\''\\); print\\('\\\\''4\\)'\\\\'', calculate_points\\(3,2,2,3,'\\\\''Neymar'\\\\'', ts\\), '\\\\''\\(esp 0, errou tudo\\)'\\\\''\\); ts0 = compute_top_scorers\\('\\\\''null'\\\\'', '\\\\''null'\\\\''\\); print\\('\\\\''empty:'\\\\'', ts0\\); print\\('\\\\''5\\)'\\\\'', calculate_points\\(0,0,0,0,'\\\\''Qualquer'\\\\'', ts0\\), '\\\\''\\(esp 5, 0x0 sem artilheiro\\)'\\\\''\\);')"
     ]
   }
 }

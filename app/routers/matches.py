@@ -159,16 +159,20 @@ def get_match(
     raw = match.raw_data or {}
     home_team_id = raw.get("home_team_id", "0")
     away_team_id = raw.get("away_team_id", "0")
-    home_team = _team_to_info(service.get_team(home_team_id))
-    away_team = _team_to_info(service.get_team(away_team_id))
+
+    expected_ids = {tid for tid in (home_team_id, away_team_id) if tid and tid != "0"}
+    teams_map = service.get_teams_batch(expected_ids)
+    if expected_ids - set(teams_map.keys()):
+        service.sync_all_teams()
+        teams_map = service.get_teams_batch(expected_ids)
 
     return MatchDetailResponse(
         match_id=match.match_id,
         finished=match.finished,
         kickoff_utc=match.kickoff_utc,
         data=raw,
-        home_team=home_team,
-        away_team=away_team,
+        home_team=_team_to_info(teams_map.get(home_team_id)),
+        away_team=_team_to_info(teams_map.get(away_team_id)),
     )
 
 

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.routers import auth, competitions, matches, bets
+from app.routers import auth, competitions, matches, bets, scoring
 
 app = FastAPI(
     title="Bolão da Copa 2026",
@@ -26,6 +26,7 @@ app.include_router(auth.router)
 app.include_router(competitions.router)
 app.include_router(matches.router)
 app.include_router(bets.router)
+app.include_router(scoring.router)
 
 
 @app.get("/health", tags=["health"])

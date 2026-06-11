@@ -1,3 +1,4 @@
+import re
 import unicodedata
 from collections import Counter
 from typing import Optional
@@ -5,6 +6,12 @@ from sqlalchemy.orm import Session
 
 from app.models.bet import Bet
 from app.models.match import CachedMatch
+
+
+_QUOTE_CHARS = "\"'“”‘’"
+# Sufixo de minuto que a API anexa ao nome: " 9'", " 67'", " 90+2'".
+# A apóstrofe é opcional porque o strip de aspas já pode tê-la consumido.
+_MINUTE_SUFFIX = re.compile(r"\s+\d+(?:\+\d+)?\s*['’]?\s*$")
 
 
 def _coerce_int(value, default: int = 0) -> int:
@@ -32,16 +39,26 @@ def _normalize_name(name: str) -> str:
 def _parse_scorers(scorers_field) -> list[str]:
     """Converte 'home_scorers'/'away_scorers' da API em lista normalizada.
 
-    Casos tratados: None, 'null' (string), string vazia, nomes separados por
-    vírgula com nomes repetidos representando múltiplos gols do mesmo jogador.
+    A API envia no formato Postgres-array com aspas e minuto do gol:
+        {"J. Quiñones 9'","R. Jiménez 67'"}
+    Remove braces externas, aspas (retas e curvas) e o sufixo de minuto.
+    Nomes repetidos representam múltiplos gols do mesmo jogador.
+    Trata também: None, 'null' (string), string vazia.
     """
     if not scorers_field:
         return []
     raw = str(scorers_field).strip()
     if not raw or raw.lower() == "null":
         return []
-    parts = [p.strip() for p in raw.split(",")]
-    return [_normalize_name(p) for p in parts if p.strip()]
+    if raw.startswith("{") and raw.endswith("}"):
+        raw = raw[1:-1]
+    cleaned: list[str] = []
+    for p in raw.split(","):
+        name = p.strip().strip(_QUOTE_CHARS).strip()
+        name = _MINUTE_SUFFIX.sub("", name).strip()
+        if name:
+            cleaned.append(_normalize_name(name))
+    return cleaned
 
 
 def compute_top_scorers(home_scorers_field, away_scorers_field) -> set[str]:

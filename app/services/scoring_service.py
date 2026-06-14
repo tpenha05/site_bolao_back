@@ -9,9 +9,13 @@ from app.models.match import CachedMatch
 
 
 _QUOTE_CHARS = "\"'“”‘’"
-# Sufixo de minuto que a API anexa ao nome: " 9'", " 67'", " 90+2'".
-# A apóstrofe é opcional porque o strip de aspas já pode tê-la consumido.
-_MINUTE_SUFFIX = re.compile(r"\s+\d+(?:\+\d+)?\s*['’]?\s*$")
+# Sufixo de minuto que a API anexa ao nome: " 9'", " 67'", " 90'+5'".
+# Apóstrofes são opcionais porque o strip de aspas pode tê-las consumido.
+_MINUTE_SUFFIX = re.compile(r"\s+\d+\s*['’]?\s*(?:\+\s*\d+\s*['’]?)?\s*$")
+# Marcador de pênalti — gol conta normalmente para o autor.
+_PENALTY_TAG = re.compile(r"\s*\(\s*p\s*\)\s*$", re.IGNORECASE)
+# Marcador de gol contra — o autor NÃO conta como artilheiro da partida.
+_OWN_GOAL_TAG = re.compile(r"\s*\(\s*o\.?\s*g\.?\s*\)\s*$", re.IGNORECASE)
 
 
 def _coerce_int(value, default: int = 0) -> int:
@@ -55,6 +59,9 @@ def _parse_scorers(scorers_field) -> list[str]:
     cleaned: list[str] = []
     for p in raw.split(","):
         name = p.strip().strip(_QUOTE_CHARS).strip()
+        if _OWN_GOAL_TAG.search(name):
+            continue
+        name = _PENALTY_TAG.sub("", name).strip()
         name = _MINUTE_SUFFIX.sub("", name).strip()
         if name:
             cleaned.append(_normalize_name(name))
@@ -91,8 +98,7 @@ def calculate_points(
         points = 0
 
     if (
-        points > 0
-        and predicted_scorer
+        predicted_scorer
         and actual_top_scorers
         and _normalize_name(predicted_scorer) in actual_top_scorers
     ):

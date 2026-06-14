@@ -59,7 +59,7 @@ bolao/
 
 - Apostas só podem ser feitas/editadas **antes do início do jogo**
 - Comparar sempre em UTC — converter `local_date` da API externa para `kickoff_utc` usando o fuso do estádio
-- Placar exato = 5 pts; só resultado = 2 pts; artilheiro (bônus) = +1 pt — placar exato já engloba resultado, não somam
+- Placar exato = 5 pts; só resultado = 2 pts; artilheiro = +1 pt sempre que acertar (independe de acertar placar/resultado) — placar exato já engloba resultado, não somam
 - Apostas de outros participantes ficam ocultas até o jogo começar
 - Cache: jogos `finished=TRUE` são permanentes; jogos `finished=FALSE` expiram em 5 minutos
 

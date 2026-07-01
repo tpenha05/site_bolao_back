@@ -11,6 +11,7 @@ from app.services.scoring_service import (
     _shootout_winner,
     calculate_points,
     _coerce_int,
+    _normalize_classifier,
 )
 
 
@@ -42,12 +43,13 @@ def main(match_id: int) -> None:
         bets = db.query(Bet).filter(Bet.match_id == match_id).all()
         print(f"\n=== {len(bets)} apostas ===")
         for b in bets:
+            normalized = _normalize_classifier(b.predicted_classifier, raw)
             expected = calculate_points(
                 b.predicted_home_score,
                 b.predicted_away_score,
                 actual_home,
                 actual_away,
-                b.predicted_classifier,
+                normalized,
                 shootout,
             )
             marker = "OK" if expected == b.points else "!!"

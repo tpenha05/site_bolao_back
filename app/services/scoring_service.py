@@ -20,6 +20,24 @@ def _get_result(home: int, away: int) -> str:
     return "draw"
 
 
+def _normalize_classifier(predicted: Optional[str], raw: dict) -> Optional[str]:
+    """Aceita 'home'/'away' ou o nome do time (legado — apostas anteriores
+    ao rename da coluna guardavam o nome do time). Retorna 'home'/'away' ou None.
+    """
+    if not predicted:
+        return None
+    p = str(predicted).strip().lower()
+    if p in ("home", "away"):
+        return p
+    home_name = str(raw.get("home_team_name_en", "")).strip().lower()
+    away_name = str(raw.get("away_team_name_en", "")).strip().lower()
+    if home_name and p == home_name:
+        return "home"
+    if away_name and p == away_name:
+        return "away"
+    return None
+
+
 def _shootout_winner(raw: dict) -> Optional[str]:
     """Retorna 'home'/'away' se o jogo foi decidido nos pênaltis, senão None.
 
@@ -91,12 +109,13 @@ class ScoringService:
         bets = self.db.query(Bet).filter(Bet.match_id == match_id).all()
         updated = 0
         for bet in bets:
+            classifier = _normalize_classifier(bet.predicted_classifier, raw)
             pts = calculate_points(
                 bet.predicted_home_score,
                 bet.predicted_away_score,
                 actual_home,
                 actual_away,
-                bet.predicted_classifier,
+                classifier,
                 shootout,
             )
             bet.points = pts

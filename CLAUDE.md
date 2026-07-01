@@ -59,7 +59,11 @@ bolao/
 
 - Apostas só podem ser feitas/editadas **antes do início do jogo**
 - Comparar sempre em UTC — converter `local_date` da API externa para `kickoff_utc` usando o fuso do estádio
-- Placar exato = 5 pts; só resultado = 2 pts; artilheiro = +1 pt sempre que acertar (independe de acertar placar/resultado) — placar exato já engloba resultado, não somam
+- Placar exato = 5 pts; só resultado = 2 pts; placar exato já engloba resultado, não somam
+- Jogos de mata-mata decididos nos pênaltis (placar regular empatado + `home_penalty_score`/`away_penalty_score` na API): +1 pt se o usuário acertou o classificado.
+  - Se apostou em empate: usa o campo `predicted_classifier` (`"home"`/`"away"`).
+  - Se apostou em vitória: o classificado é implicitamente o time vencedor previsto — +1 se esse time se classificou nos pênaltis, mesmo que o placar/resultado estejam errados.
+- Artilheiro (`predicted_top_scorer`) foi descontinuado — a coluna virou `predicted_classifier`.
 - Apostas de outros participantes ficam ocultas até o jogo começar
 - Cache: jogos `finished=TRUE` são permanentes; jogos `finished=FALSE` expiram em 5 minutos
 

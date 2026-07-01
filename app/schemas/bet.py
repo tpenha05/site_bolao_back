@@ -1,7 +1,10 @@
 import uuid
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel
+
+
+ClassifierSide = Literal["home", "away"]
 
 
 class BetCreate(BaseModel):
@@ -9,7 +12,7 @@ class BetCreate(BaseModel):
     match_id: int
     predicted_home_score: int
     predicted_away_score: int
-    predicted_top_scorer: Optional[str] = None
+    predicted_classifier: Optional[ClassifierSide] = None
 
 
 class BetResponse(BaseModel):
@@ -19,7 +22,7 @@ class BetResponse(BaseModel):
     user_id: uuid.UUID
     predicted_home_score: int
     predicted_away_score: int
-    predicted_top_scorer: Optional[str]
+    predicted_classifier: Optional[ClassifierSide]
     points: Optional[int]
     created_at: datetime
     updated_at: datetime
@@ -32,7 +35,7 @@ class BetPublic(BaseModel):
     user_name: str
     predicted_home_score: int
     predicted_away_score: int
-    predicted_top_scorer: Optional[str]
+    predicted_classifier: Optional[ClassifierSide]
     points: Optional[int]
 
 

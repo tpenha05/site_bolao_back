@@ -121,10 +121,8 @@ Os endpoints de admin exigem o header `X-Admin-Key` com o valor de `ADMIN_API_KE
 curl -X POST http://localhost:8000/matches/sync \
   -H "X-Admin-Key: sua-chave-admin"
 
-curl -X POST http://localhost:8000/scoring/update/1 \
-  -H "X-Admin-Key: sua-chave-admin" \
-  -H "Content-Type: application/json" \
-  -d '{"top_scorer": "Lionel Messi"}'
+curl -X POST http://localhost:8000/scoring/recompute/1 \
+  -H "X-Admin-Key: sua-chave-admin"
 ```
 
 ---
@@ -135,10 +133,20 @@ curl -X POST http://localhost:8000/scoring/update/1 \
 |---|---|
 | Placar exato | **5 pts** |
 | Resultado correto (quem ganhou / empate) | **2 pts** |
-| Artilheiro do jogo correto (bônus) | **+1 pt** |
 | Tudo errado | 0 pts |
 
-Máximo por jogo: **6 pontos**.
+### Bônus em jogos decididos nos pênaltis (mata-mata)
+
+Quando o placar regular termina empatado e o jogo é decidido em `home_penalty_score`/`away_penalty_score`:
+
+| Aposta | Bônus |
+|---|---|
+| Empate + acertou o classificado (campo `predicted_classifier`) | **+1 pt** |
+| Vitória do time que se classificou nos pênaltis | **+1 pt** |
+
+Máximo por jogo: **6 pontos** (placar exato + classificado).
+
+> Bônus de artilheiro foi descontinuado.
 
 ---
 

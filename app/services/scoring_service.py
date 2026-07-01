@@ -1,6 +1,3 @@
-import re
-import unicodedata
-from collections import Counter
 from typing import Optional
 from sqlalchemy.orm import Session
 
@@ -8,17 +5,7 @@ from app.models.bet import Bet
 from app.models.match import CachedMatch
 
 
-_QUOTE_CHARS = "\"'“”‘’"
-# Sufixo de minuto que a API anexa ao nome: " 9'", " 67'", " 90'+5'".
-# Apóstrofes são opcionais porque o strip de aspas pode tê-las consumido.
-_MINUTE_SUFFIX = re.compile(r"\s+\d+\s*['’]?\s*(?:\+\s*\d+\s*['’]?)?\s*$")
-# Marcador de pênalti — gol conta normalmente para o autor.
-_PENALTY_TAG = re.compile(r"\s*\(\s*p\s*\)\s*$", re.IGNORECASE)
-# Marcador de gol contra — o autor NÃO conta como artilheiro da partida.
-_OWN_GOAL_TAG = re.compile(r"\s*\(\s*o\.?\s*g\.?\s*\)\s*$", re.IGNORECASE)
-
-
-def _coerce_int(value, default: int = 0) -> int:
+def _coerce_int(value, default: Optional[int] = 0) -> Optional[int]:
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -33,53 +20,21 @@ def _get_result(home: int, away: int) -> str:
     return "draw"
 
 
-def _normalize_name(name: str) -> str:
-    """Normaliza nome para comparação: minúsculas, sem acentos, sem espaços extras."""
-    stripped = name.strip().lower()
-    nfd = unicodedata.normalize("NFD", stripped)
-    return "".join(ch for ch in nfd if unicodedata.category(ch) != "Mn")
+def _shootout_winner(raw: dict) -> Optional[str]:
+    """Retorna 'home'/'away' se o jogo foi decidido nos pênaltis, senão None.
 
-
-def _parse_scorers(scorers_field) -> list[str]:
-    """Converte 'home_scorers'/'away_scorers' da API em lista normalizada.
-
-    A API envia no formato Postgres-array com aspas e minuto do gol:
-        {"J. Quiñones 9'","R. Jiménez 67'"}
-    Remove braces externas, aspas (retas e curvas) e o sufixo de minuto.
-    Nomes repetidos representam múltiplos gols do mesmo jogador.
-    Trata também: None, 'null' (string), string vazia.
+    Considera pênaltis quando o placar regular é empate e a API traz
+    home_penalty_score e away_penalty_score numéricos distintos.
     """
-    if not scorers_field:
-        return []
-    raw = str(scorers_field).strip()
-    if not raw or raw.lower() == "null":
-        return []
-    if raw.startswith("{") and raw.endswith("}"):
-        raw = raw[1:-1]
-    cleaned: list[str] = []
-    for p in raw.split(","):
-        name = p.strip().strip(_QUOTE_CHARS).strip()
-        if _OWN_GOAL_TAG.search(name):
-            continue
-        name = _PENALTY_TAG.sub("", name).strip()
-        name = _MINUTE_SUFFIX.sub("", name).strip()
-        if name:
-            cleaned.append(_normalize_name(name))
-    return cleaned
-
-
-def compute_top_scorers(home_scorers_field, away_scorers_field) -> set[str]:
-    """Retorna o set de nomes normalizados empatados no maior número de gols.
-
-    Combina os artilheiros dos dois times — quem fez mais gols no jogo, indepen-
-    dente do lado. Em caso de empate, todos os líderes contam.
-    """
-    all_scorers = _parse_scorers(home_scorers_field) + _parse_scorers(away_scorers_field)
-    if not all_scorers:
-        return set()
-    counts = Counter(all_scorers)
-    max_goals = max(counts.values())
-    return {name for name, n in counts.items() if n == max_goals}
+    home = _coerce_int(raw.get("home_score"), None)
+    away = _coerce_int(raw.get("away_score"), None)
+    if home is None or away is None or home != away:
+        return None
+    home_pk = _coerce_int(raw.get("home_penalty_score"), None)
+    away_pk = _coerce_int(raw.get("away_penalty_score"), None)
+    if home_pk is None or away_pk is None or home_pk == away_pk:
+        return None
+    return "home" if home_pk > away_pk else "away"
 
 
 def calculate_points(
@@ -87,22 +42,28 @@ def calculate_points(
     predicted_away: int,
     actual_home: int,
     actual_away: int,
-    predicted_scorer: Optional[str],
-    actual_top_scorers: set[str],
+    predicted_classifier: Optional[str],
+    shootout_winner: Optional[str],
 ) -> int:
-    if predicted_home == actual_home and predicted_away == actual_away:
+    predicted_result = _get_result(predicted_home, predicted_away)
+    exact = predicted_home == actual_home and predicted_away == actual_away
+    same_result = predicted_result == _get_result(actual_home, actual_away)
+
+    if exact:
         points = 5
-    elif _get_result(predicted_home, predicted_away) == _get_result(actual_home, actual_away):
+    elif same_result:
         points = 2
     else:
         points = 0
 
-    if (
-        predicted_scorer
-        and actual_top_scorers
-        and _normalize_name(predicted_scorer) in actual_top_scorers
-    ):
-        points += 1
+    if shootout_winner:
+        if predicted_result == "draw":
+            if predicted_classifier == shootout_winner:
+                points += 1
+        else:
+            # Vitória prevista para o time que se classificou nos pênaltis.
+            if predicted_result == shootout_winner:
+                points += 1
 
     return points
 
@@ -125,9 +86,7 @@ class ScoringService:
 
         actual_home = _coerce_int(raw.get("home_score"))
         actual_away = _coerce_int(raw.get("away_score"))
-        actual_top_scorers = compute_top_scorers(
-            raw.get("home_scorers"), raw.get("away_scorers")
-        )
+        shootout = _shootout_winner(raw)
 
         bets = self.db.query(Bet).filter(Bet.match_id == match_id).all()
         updated = 0
@@ -137,8 +96,8 @@ class ScoringService:
                 bet.predicted_away_score,
                 actual_home,
                 actual_away,
-                bet.predicted_top_scorer,
-                actual_top_scorers,
+                bet.predicted_classifier,
+                shootout,
             )
             bet.points = pts
             updated += 1
@@ -150,7 +109,7 @@ class ScoringService:
         """Pontua apostas (points IS NULL) de jogos já finalizados.
 
         Chamado a cada list_matches para que o ranking reflita resultados
-        automaticamente. Lê os artilheiros direto do raw_data da API externa.
+        automaticamente.
         """
         pending_match_ids = (
             self.db.query(Bet.match_id)

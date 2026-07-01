@@ -52,10 +52,16 @@ def create_or_update_bet(
         user_id=current_user.id,
     ).first()
 
+    # Classificado só faz sentido quando a aposta é empate — em vitória, o
+    # classificado é implicitamente o time vencedor previsto.
+    classifier = body.predicted_classifier
+    if body.predicted_home_score != body.predicted_away_score:
+        classifier = None
+
     if existing:
         existing.predicted_home_score = body.predicted_home_score
         existing.predicted_away_score = body.predicted_away_score
-        existing.predicted_top_scorer = body.predicted_top_scorer
+        existing.predicted_classifier = classifier
         existing.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(existing)
@@ -67,7 +73,7 @@ def create_or_update_bet(
         user_id=current_user.id,
         predicted_home_score=body.predicted_home_score,
         predicted_away_score=body.predicted_away_score,
-        predicted_top_scorer=body.predicted_top_scorer,
+        predicted_classifier=classifier,
     )
     db.add(bet)
     db.commit()
@@ -129,7 +135,7 @@ def get_competition_bets(
                 user_name=user_name,
                 predicted_home_score=bet.predicted_home_score,
                 predicted_away_score=bet.predicted_away_score,
-                predicted_top_scorer=bet.predicted_top_scorer,
+                predicted_classifier=bet.predicted_classifier,
                 points=bet.points,
             ))
 

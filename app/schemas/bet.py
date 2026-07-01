@@ -22,7 +22,8 @@ class BetResponse(BaseModel):
     user_id: uuid.UUID
     predicted_home_score: int
     predicted_away_score: int
-    predicted_classifier: Optional[ClassifierSide]
+    # Response tolera valores legados (nome do time em vez de 'home'/'away')
+    predicted_classifier: Optional[str]
     points: Optional[int]
     created_at: datetime
     updated_at: datetime
@@ -35,7 +36,7 @@ class BetPublic(BaseModel):
     user_name: str
     predicted_home_score: int
     predicted_away_score: int
-    predicted_classifier: Optional[ClassifierSide]
+    predicted_classifier: Optional[str]
     points: Optional[int]
 
 
